@@ -37,7 +37,7 @@ packages = ["perimeter"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-q --strict-markers"
+addopts = "-q --strict-markers -m 'not bench'"
 markers = [
     "invariant: security invariant tests (INV-1..INV-5); a failure here is a security bug",
     "bench: benchmark regression gates; slow",

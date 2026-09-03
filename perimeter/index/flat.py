@@ -51,7 +51,7 @@ from perimeter.index.quantize import (
 )
 
 FORMAT = "perimeter-flat-v1"
-DEFAULT_RESCORE_MULTIPLIER = 16
+DEFAULT_RESCORE_MULTIPLIER = 64
 """Binary-scan candidates rescored per requested result. A recall knob, not a security one."""
 
 

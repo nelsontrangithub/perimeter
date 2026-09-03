@@ -23,7 +23,7 @@ bench:
 	uv run python -m bench.run --out bench/results.md
 
 bench-gate:
-	uv run pytest -m bench -v
+	uv run pytest -m bench -v -p no:cacheprovider
 
 run:
 	uv run perimeter serve
