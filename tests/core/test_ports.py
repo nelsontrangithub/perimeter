@@ -68,6 +68,9 @@ class _Store:
     def get_document(self, id: DocumentId, permitted: PermissionSet) -> Document | None:
         return None
 
+    def list_documents(self, permitted: PermissionSet, *, limit: int) -> Sequence[Document]:
+        return []
+
     def delete(self, id: DocumentId) -> None:
         return None
 
