@@ -45,3 +45,7 @@ class StoreError(PerimeterError):
 
 class AclResolutionError(PerimeterError):
     """Permissions could not be resolved. Callers must treat this as an empty set."""
+
+
+class AuthError(PerimeterError):
+    """The caller's forwarded identity is missing or malformed. Never echoes header values."""
