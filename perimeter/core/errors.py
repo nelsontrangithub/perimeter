@@ -17,3 +17,7 @@ class PerimeterError(Exception):
 
 class InvalidPrincipalError(PerimeterError):
     """A principal or group identifier is malformed or reserved."""
+
+
+class InvalidDocumentError(PerimeterError):
+    """A document, chunk, or source reference is malformed."""
