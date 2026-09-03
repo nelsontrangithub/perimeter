@@ -1,0 +1,82 @@
+[project]
+name = "perimeter"
+version = "0.1.0"
+description = "Permission-aware retrieval: per-user ACLs enforced inside the index scan, exposed as an MCP tool server, deployable air-gapped."
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+license = "MIT"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "numpy>=2.0",
+    "httpx>=0.27",
+    "mcp>=1.0",
+    "opentelemetry-api>=1.25",
+    "opentelemetry-sdk>=1.25",
+    "psycopg[binary]>=3.2",
+]
+
+[project.scripts]
+perimeter = "perimeter.server.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "hypothesis>=6.100",
+    "ruff>=0.6",
+    "mypy>=1.11",
+    "anyio>=4.4",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["perimeter"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --strict-markers"
+markers = [
+    "invariant: security invariant tests (INV-1..INV-5); a failure here is a security bug",
+    "bench: benchmark regression gates; slow",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["perimeter", "tests", "bench"]
+
+[tool.ruff.lint]
+select = [
+    "E", "F", "W",      # pycodestyle / pyflakes
+    "I",                # isort
+    "B",                # bugbear
+    "UP",               # pyupgrade
+    "N",                # naming
+    "ANN",              # annotations: every def is typed
+    "T20",              # no print
+    "BLE",              # no blind except
+    "S",                # bandit-lite
+    "RUF",
+]
+ignore = [
+    "ANN401",           # Any is occasionally the honest type at adapter edges
+    "S101",             # assert is fine in tests; production code uses typed errors
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S", "ANN"]
+"bench/**" = ["T20"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+disallow_any_unimported = false
+files = ["perimeter", "tests", "bench"]
+
+[[tool.mypy.overrides]]
+module = ["hypothesis.*"]
+ignore_missing_imports = true

@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.hypothesis/
+dist/
+build/
+*.egg-info/
+
+# Node
+admin/node_modules/
+admin/dist/
+
+# Local data
+data/
+*.idx
+*.npy
+.env
+.DS_Store
