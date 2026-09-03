@@ -33,10 +33,10 @@ from typing import cast
 
 import numpy as np
 
-from perimeter.core.acl import AccessPolicy
+from perimeter.core.acl import AccessPolicy, PermissionSet
 from perimeter.core.document import ChunkId
 from perimeter.core.errors import VectorIndexError
-from perimeter.core.ports import IndexEntry
+from perimeter.core.ports import IndexEntry, IndexHit, Vector
 from perimeter.core.principal import PrincipalId
 from perimeter.index.quantize import (
     F32,
@@ -340,6 +340,15 @@ class FlatIndex:
         self._load()
 
     # -- reads -------------------------------------------------------------
+
+    def search(self, query: Vector, permitted: PermissionSet, k: int) -> Sequence[IndexHit]:
+        """The VectorIndex port. Filtering is applied inside the scan; see filtered_search."""
+        from perimeter.index.filtered_search import filtered_search
+
+        self._flush_if_staged()
+        if len(self._ids) == 0:
+            return []
+        return filtered_search(self, query, permitted, k)
 
     def scan_rows(self, query: F32, rows: I32, k: int) -> tuple[I32, F32]:
         """Score exactly ``rows`` against ``query``; return up to ``k`` best, best first.
