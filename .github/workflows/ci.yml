@@ -44,6 +44,23 @@ jobs:
         run: uv run pytest tests/test_architecture.py -v
       - name: Tests
         run: uv run pytest
+      - name: Security invariants (INV-1..INV-5)
+        run: uv run pytest -m invariant -v
+
+  gates:
+    name: performance budget gates (50k-chunk corpus)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Install
+        run: uv sync --all-groups
+      - name: Recall, latency, memory, index size, API-call gates
+        run: make bench-gate
+      - name: Results table (informational)
+        run: uv run python -m bench.run --out /tmp/results.md --json /tmp/results.json
 
   admin:
     name: admin console (typed client, typecheck, build, tests)

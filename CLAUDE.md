@@ -160,16 +160,18 @@ Where each is enforced in code:
 
 ## Performance budget
 
-Build gates, not aspirations. `tests/bench/` fails CI if any is exceeded. Measured values
-live in the README and are produced only by `make bench`.
+Build gates, not aspirations. The ceilings live in `bench/budget.py`; the CI job `gates`
+runs `make bench-gate` (`tests/bench/test_budget_gates.py`) at the full 50k-chunk corpus
+and fails the build if any is exceeded. Measured values live in the README and
+`bench/results.md`, produced only by `make bench`.
 
-| Metric | Ceiling | Measured on |
-|--------|---------|-------------|
-| p95 end-to-end retrieval latency, 50k-chunk corpus, in-process (Cohere calls stubbed at zero cost) | <= 30 ms | `bench/run.py` |
-| Peak RSS during a sustained query loop, 50k-chunk corpus | <= 512 MiB | `bench/run.py` |
-| Index bytes per chunk (binary codes + int8 codes + ids + ACL rows) | <= 1,280 bytes | `bench/run.py` |
-| recall@10 versus an exact float32 baseline | >= 0.95 | `tests/bench/test_recall_gate.py` |
-| Cost per query in Cohere API calls | <= 2 (one embed, one rerank) | `bench/run.py` |
+| Metric | Ceiling | Gate |
+|--------|---------|------|
+| p95 end-to-end retrieval latency, 50k-chunk corpus, in-process (Cohere calls stubbed at zero cost), at 100% and 10% of rows permitted | <= 30 ms | `test_gate_p95_latency` |
+| Peak RSS of the serving process during a sustained query loop, 50k-chunk corpus | <= 512 MiB | `test_gate_peak_rss` |
+| Index bytes per chunk (binary codes + int8 codes + ids + ACL rows + quantizer) | <= 1,280 bytes | `test_gate_index_bytes_per_chunk` |
+| recall@10 versus an exact float32 baseline, at 100% and 10% permitted | >= 0.95 | `test_gate_recall_at_10`, `tests/bench/test_recall_gate.py` |
+| Cost per query in Cohere API calls | <= 2 (one embed, one rerank) | `test_gate_cohere_calls_per_query` |
 
 Embedding dimension is 1024 (`embed-v4.0` with `output_dimension=1024`). Index storage per
 vector is 128 bytes of binary code for the scan plus 1,024 bytes of int8 code for
