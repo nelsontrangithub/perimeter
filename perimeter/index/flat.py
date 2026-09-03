@@ -34,7 +34,7 @@ from typing import cast
 import numpy as np
 
 from perimeter.core.acl import AccessPolicy, PermissionSet
-from perimeter.core.document import ChunkId
+from perimeter.core.document import ChunkId, DocumentId, chunk_id_prefix
 from perimeter.core.errors import VectorIndexError
 from perimeter.core.ports import IndexEntry, IndexHit, Vector
 from perimeter.core.principal import PrincipalId
@@ -157,6 +157,7 @@ class FlatIndex:
         self._row_of: dict[ChunkId, int] = {}
         self._acl: AclTable = AclTable.build([])
         self._staged = _Staged([], [], [])
+        self._removed_prefixes: list[str] = []
 
     # -- lifecycle ---------------------------------------------------------
 
@@ -298,16 +299,25 @@ class FlatIndex:
             self._staged.ids.append(entry.chunk_id)
             self._staged.policies.append(entry.policy)
 
+    def remove_document(self, document_id: DocumentId) -> None:
+        """Drop every row belonging to ``document_id`` at the next flush."""
+        self._removed_prefixes.append(chunk_id_prefix(document_id))
+
     def _flush_if_staged(self) -> None:
-        if len(self._staged):
+        if len(self._staged) or self._removed_prefixes:
             self.flush()
 
     def flush(self) -> None:
         """Append staged rows to disk (later duplicates replace earlier rows) and re-map."""
         staged, self._staged = self._staged, _Staged([], [], [])
+        removed, self._removed_prefixes = tuple(self._removed_prefixes), []
         all_ids = [*self._ids, *staged.ids]
         last_pos = {cid: i for i, cid in enumerate(all_ids)}
-        keep = [i for i, cid in enumerate(all_ids) if last_pos[cid] == i]
+        keep = [
+            i
+            for i, cid in enumerate(all_ids)
+            if last_pos[cid] == i and not (i < len(self._ids) and cid.startswith(removed))
+        ]
         keep_old = np.asarray([i for i in keep if i < len(self._ids)], dtype=np.int64)
         keep_new = [i - len(self._ids) for i in keep if i >= len(self._ids)]
 

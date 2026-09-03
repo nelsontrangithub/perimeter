@@ -158,3 +158,19 @@ def test_policy_and_source_roundtrip(store: DocumentStore) -> None:
     assert chunk.policy == policy
     assert chunk.source == doc.source
     assert (chunk.ordinal, chunk.start, chunk.end) == (1, 6, 10)
+
+
+def test_fingerprint_changes_with_text_or_policy_and_is_none_when_missing(
+    store: DocumentStore,
+) -> None:
+    assert store.fingerprint(DocumentId("missing")) is None
+    doc, chunks = _doc("f", AccessPolicy.public(), text="one")
+    store.put(doc, chunks)
+    fp = store.fingerprint(doc.id)
+    assert fp == doc.fingerprint
+    doc2, chunks2 = _doc("f", AccessPolicy.public(), text="two")
+    store.put(doc2, chunks2)
+    assert store.fingerprint(doc.id) != fp
+    doc3, chunks3 = _doc("f", AccessPolicy.from_rules([Grant(ALICE)]), text="two")
+    store.put(doc3, chunks3)
+    assert store.fingerprint(doc.id) not in (fp, doc2.fingerprint)

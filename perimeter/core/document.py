@@ -38,6 +38,21 @@ def chunk_id_for(document_id: DocumentId, ordinal: int) -> ChunkId:
     return ChunkId(f"{document_id}#{ordinal}")
 
 
+def chunk_id_prefix(document_id: DocumentId) -> str:
+    """Every chunk of ``document_id`` has an ID starting with this."""
+    return f"{document_id}#"
+
+
+def policy_fingerprint(content_hash: str, policy: AccessPolicy) -> str:
+    """Fingerprint of text-and-policy. Changing either invalidates an ingested copy."""
+    h = hashlib.sha256(content_hash.encode("ascii"))
+    for p in sorted(policy.grants):
+        h.update(b"+" + p.encode("utf-8"))
+    for p in sorted(policy.denies):
+        h.update(b"-" + p.encode("utf-8"))
+    return h.hexdigest()
+
+
 @dataclass(frozen=True, slots=True)
 class SourceRef:
     """Where a document came from, for citations and re-fetching."""
@@ -63,6 +78,10 @@ class Document:
         parse_document_id(id)
         digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
         return cls(id=id, source=source, policy=policy, text=text, content_hash=digest)
+
+    @property
+    def fingerprint(self) -> str:
+        return policy_fingerprint(self.content_hash, self.policy)
 
 
 @dataclass(frozen=True, slots=True)

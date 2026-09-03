@@ -82,6 +82,8 @@ class VectorIndex(Protocol):
 
     def add(self, entries: Iterable[IndexEntry]) -> None: ...
 
+    def remove_document(self, document_id: DocumentId) -> None: ...
+
     def search(self, query: Vector, permitted: PermissionSet, k: int) -> Sequence[IndexHit]: ...
 
 
@@ -90,6 +92,10 @@ class DocumentStore(Protocol):
     """Holds text. Every read takes the caller's permission set and enforces it (INV-1)."""
 
     def put(self, document: Document, chunks: Sequence[Chunk]) -> None: ...
+
+    def fingerprint(self, id: DocumentId) -> str | None:
+        """Content-and-policy fingerprint of a stored document, or None. Carries no text."""
+        ...
 
     def get_chunks(self, ids: Sequence[ChunkId], permitted: PermissionSet) -> Sequence[Chunk]: ...
 

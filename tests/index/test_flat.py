@@ -191,3 +191,18 @@ def test_row_of_unknown_id_raises(tmp_path: Path) -> None:
     idx = FlatIndex.open(tmp_path / "idx", dimension=DIM)
     with pytest.raises(VectorIndexError):
         idx.row_of(ChunkId("nope"))
+
+
+def test_remove_document_drops_its_rows_at_flush(tmp_path: Path) -> None:
+    from perimeter.core.document import DocumentId
+
+    vecs = _vectors(4)
+    idx = FlatIndex.open(tmp_path / "idx", dimension=DIM)
+    idx.add([IndexEntry(ChunkId(f"docA#{i}"), as_vector(vecs[i]), PUBLIC) for i in range(2)])
+    idx.add([IndexEntry(ChunkId(f"docB#{i}"), as_vector(vecs[2 + i]), PUBLIC) for i in range(2)])
+    idx.flush()
+    idx.remove_document(DocumentId("docA"))
+    idx.add([IndexEntry(ChunkId("docA#0"), as_vector(vecs[0]), PUBLIC)])
+    idx.flush()
+    assert idx.size == 3
+    assert sorted(idx.chunk_id_at(r) for r in range(3)) == ["docA#0", "docB#0", "docB#1"]

@@ -27,6 +27,10 @@ class MemoryStore:
             ids.append(chunk.id)
         self._chunks_by_document[document.id] = ids
 
+    def fingerprint(self, id: DocumentId) -> str | None:
+        doc = self._documents.get(id)
+        return None if doc is None else doc.fingerprint
+
     def get_chunks(self, ids: Sequence[ChunkId], permitted: PermissionSet) -> Sequence[Chunk]:
         if permitted.is_empty:
             return []

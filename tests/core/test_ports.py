@@ -50,6 +50,9 @@ class _Index:
     def add(self, entries: Iterable[IndexEntry]) -> None:
         self._entries.extend(entries)
 
+    def remove_document(self, document_id: DocumentId) -> None:
+        self._entries = [e for e in self._entries if not e.chunk_id.startswith(f"{document_id}#")]
+
     def search(self, query: Vector, permitted: PermissionSet, k: int) -> Sequence[IndexHit]:
         return [
             IndexHit(chunk_id=e.chunk_id, score=0.0)
@@ -60,6 +63,9 @@ class _Index:
 
 class _Store:
     def put(self, document: Document, chunks: Sequence[Chunk]) -> None:
+        return None
+
+    def fingerprint(self, id: DocumentId) -> str | None:
         return None
 
     def get_chunks(self, ids: Sequence[ChunkId], permitted: PermissionSet) -> Sequence[Chunk]:

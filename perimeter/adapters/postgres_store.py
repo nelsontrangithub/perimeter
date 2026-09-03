@@ -18,7 +18,14 @@ from typing import Any
 import psycopg
 
 from perimeter.core.acl import AccessPolicy, PermissionSet
-from perimeter.core.document import Chunk, ChunkId, Document, DocumentId, SourceRef
+from perimeter.core.document import (
+    Chunk,
+    ChunkId,
+    Document,
+    DocumentId,
+    SourceRef,
+    policy_fingerprint,
+)
 from perimeter.core.errors import StoreError
 from perimeter.core.principal import PrincipalId
 
@@ -150,6 +157,15 @@ class PostgresStore:
         self._run("DELETE FROM documents WHERE id = %s", (id,))
 
     # -- reads -----------------------------------------------------------------
+
+    def fingerprint(self, id: DocumentId) -> str | None:
+        rows = self._fetch(
+            "SELECT content_hash, grants, denies FROM documents WHERE id = %s", (id,)
+        )
+        if not rows:
+            return None
+        content_hash, grants, denies = rows[0]
+        return policy_fingerprint(content_hash, self._policy(grants, denies))
 
     def get_chunks(self, ids: Sequence[ChunkId], permitted: PermissionSet) -> Sequence[Chunk]:
         if permitted.is_empty or not ids:
