@@ -18,10 +18,17 @@ from fastapi.staticfiles import StaticFiles
 from mcp.server.transport_security import TransportSecuritySettings
 from pydantic import BaseModel
 
-from perimeter.core.errors import AuthError, ConnectorError, InvalidPrincipalError
-from perimeter.core.principal import parse_group_id, parse_principal_id
+from perimeter.core.errors import (
+    AuthError,
+    ConnectorError,
+    InvalidPrincipalError,
+    InvalidRequestError,
+)
+from perimeter.core.principal import Principal, parse_group_id, parse_principal_id
+from perimeter.core.query import RetrievalRequest
 from perimeter.server.auth import request_scope, tokens_from_headers
 from perimeter.server.connectors import ConnectorConfig, IngestRun, Kind
+from perimeter.server.mcp import result_to_payload
 from perimeter.server.wiring import Runtime
 
 Scope = MutableMapping[str, Any]
@@ -192,6 +199,33 @@ def build_app(runtime: Runtime) -> FastAPI:
             ),
         )
 
+    @app.post("/admin/api/simulate", tags=["admin"], operation_id="simulate")
+    def simulate(body: SimulateRequest) -> Simulation:
+        """Preview the corpus as any principal: what they would see, and why."""
+        try:
+            principal = Principal(
+                id=parse_principal_id(body.principal),
+                groups=frozenset(parse_group_id(g) for g in body.groups),
+            )
+            request = RetrievalRequest(principal=principal, query=body.query or "-", k=body.k)
+        except (InvalidPrincipalError, InvalidRequestError) as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from None
+        permitted = runtime.retriever.permissions_for(request)
+        documents = [
+            _explain(summary, permitted) for summary in runtime.store.catalog(limit=body.limit)
+        ]
+        results = None
+        if body.query and body.query.strip():
+            results = result_to_payload(runtime.retriever.retrieve_with(request, permitted))
+        return Simulation(
+            principal=principal.id,
+            effective_principals=sorted(permitted),
+            documents=documents,
+            visible_count=sum(1 for d in documents if d.visible),
+            total=len(documents),
+            results=results,
+        )
+
     for route in mcp_app.routes:
         app.router.routes.append(route)
 
@@ -270,6 +304,48 @@ class IndexHealth(BaseModel):
     documents: int
     chunks: int
     acl_cache: AclCacheView
+
+
+class SimulateRequest(BaseModel):
+    principal: str
+    groups: list[str] = []
+    query: str | None = None
+    k: int = 10
+    limit: int = 500
+
+
+class DocumentDecision(BaseModel):
+    id: str
+    title: str
+    uri: str
+    connector: str
+    grants: list[str]
+    denies: list[str]
+    visible: bool
+    reason: str
+
+
+class Simulation(BaseModel):
+    principal: str
+    effective_principals: list[str]
+    documents: list[DocumentDecision]
+    visible_count: int
+    total: int
+    results: dict[str, Any] | None
+
+
+def _explain(summary: Any, permitted: Any) -> DocumentDecision:
+    decision = summary.policy.explain(permitted)
+    return DocumentDecision(
+        id=summary.id,
+        title=summary.source.title,
+        uri=summary.source.uri,
+        connector=summary.source.connector,
+        grants=sorted(summary.policy.grants),
+        denies=sorted(summary.policy.denies),
+        visible=decision.admitted,
+        reason=decision.reason,
+    )
 
 
 class Health(BaseModel):

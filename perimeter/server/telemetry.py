@@ -92,9 +92,15 @@ class TracedRetriever:
         return self._inner.permissions_for(request)
 
     def retrieve(self, request: RetrievalRequest) -> ScopedResult:
+        return self.retrieve_with(request, None)
+
+    def retrieve_with(
+        self, request: RetrievalRequest, permitted: PermissionSet | None
+    ) -> ScopedResult:
         with self._telemetry.span("perimeter.retrieve", **{"perimeter.k": request.k}) as span:
             started = time.perf_counter()
-            permitted = self._inner.permissions_for(request)
+            if permitted is None:
+                permitted = self._inner.permissions_for(request)
             span.set(**{"perimeter.permitted": not permitted.is_empty})
             result = self._inner.retrieve_with(request, permitted)
             span.set(

@@ -81,6 +81,16 @@ class Deny:
 
 
 @dataclass(frozen=True, slots=True)
+class Decision:
+    """Why a policy admitted or refused a permission set. For explanation, not enforcement."""
+
+    admitted: bool
+    matched_grants: frozenset[PrincipalId]
+    matched_denies: frozenset[PrincipalId]
+    reason: str
+
+
+@dataclass(frozen=True, slots=True)
 class AccessPolicy:
     """Who may read a document. Immutable; mutation methods return a new policy."""
 
@@ -114,6 +124,28 @@ class AccessPolicy:
         if not self.denies.isdisjoint(permissions.principals):
             return False
         return not self.grants.isdisjoint(permissions.principals)
+
+    def explain(self, permissions: PermissionSet) -> Decision:
+        """Same outcome as :meth:`admits`, with the principals that decided it."""
+        matched_denies = self.denies & permissions.principals
+        matched_grants = self.grants & permissions.principals
+        admitted = self.admits(permissions)
+        if permissions.is_empty:
+            reason = "empty permission set"
+        elif matched_denies:
+            reason = f"denied via {', '.join(sorted(matched_denies))}"
+        elif not self.grants:
+            reason = "no grants"
+        elif matched_grants:
+            reason = f"granted via {', '.join(sorted(matched_grants))}"
+        else:
+            reason = "no matching grant"
+        return Decision(
+            admitted=admitted,
+            matched_grants=frozenset(matched_grants),
+            matched_denies=frozenset(matched_denies),
+            reason=reason,
+        )
 
     def revoke(self, principal: PrincipalId) -> AccessPolicy:
         return AccessPolicy(self.grants - {principal}, self.denies)

@@ -166,3 +166,11 @@ def test_explicit_denies_break_monotonicity_known_and_documented() -> None:
     full = PermissionSet.of(alice, contractors, EVERYONE)
     assert not policy.admits(full)
     assert policy.admits(full.without(contractors))
+
+
+@given(policies, permission_sets)
+def test_explain_agrees_with_admits(policy: AccessPolicy, perms: PermissionSet) -> None:
+    decision = policy.explain(perms)
+    assert decision.admitted == policy.admits(perms)
+    assert decision.matched_grants <= policy.grants
+    assert decision.matched_denies <= policy.denies

@@ -23,6 +23,7 @@ from perimeter.core.document import (
     ChunkId,
     Document,
     DocumentId,
+    DocumentSummary,
     SourceRef,
     policy_fingerprint,
 )
@@ -67,6 +68,10 @@ _SELECT_DOCUMENT = (
 _SELECT_DOCUMENTS = (
     "SELECT id, connector, uri, title, version, content_hash, grants, denies, body"
     " FROM documents WHERE grants && %s AND NOT (denies && %s) ORDER BY id LIMIT %s"
+)
+_SELECT_CATALOG = (
+    "SELECT id, connector, uri, title, version, content_hash, grants, denies"
+    " FROM documents ORDER BY id LIMIT %s"
 )
 _INSERT_DOCUMENT = (
     "INSERT INTO documents"
@@ -196,6 +201,20 @@ class PostgresStore:
         rows = self._fetch(_SELECT_DOCUMENTS, (caller, caller, limit))
         docs = [self._document_from_row(r) for r in rows]
         return [d for d in docs if d.policy.admits(permitted)]
+
+    def catalog(self, *, limit: int) -> Sequence[DocumentSummary]:
+        rows = self._fetch(_SELECT_CATALOG, (max(0, limit),))
+        out: list[DocumentSummary] = []
+        for doc_id, connector, uri, title, version, content_hash, grants, denies in rows:
+            out.append(
+                DocumentSummary(
+                    id=DocumentId(doc_id),
+                    source=SourceRef(connector=connector, uri=uri, title=title, version=version),
+                    policy=self._policy(grants, denies),
+                    content_hash=content_hash,
+                )
+            )
+        return out
 
     def count_documents(self) -> int:
         return int(self._fetch("SELECT count(*) FROM documents", None)[0][0])

@@ -7,7 +7,7 @@ from collections.abc import Iterable, Sequence
 from datetime import UTC, datetime
 
 from perimeter.core.acl import PermissionSet
-from perimeter.core.document import Chunk, ChunkId, Document, DocumentId
+from perimeter.core.document import Chunk, ChunkId, Document, DocumentId, DocumentSummary
 from perimeter.core.ports import (
     AclResolver,
     Clock,
@@ -75,6 +75,9 @@ class _Store:
         return None
 
     def list_documents(self, permitted: PermissionSet, *, limit: int) -> Sequence[Document]:
+        return []
+
+    def catalog(self, *, limit: int) -> Sequence[DocumentSummary]:
         return []
 
     def delete(self, id: DocumentId) -> None:

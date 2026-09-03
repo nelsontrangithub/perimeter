@@ -19,7 +19,7 @@ from datetime import datetime
 from typing import Protocol, runtime_checkable
 
 from perimeter.core.acl import AccessPolicy, PermissionSet
-from perimeter.core.document import Chunk, ChunkId, Document, DocumentId
+from perimeter.core.document import Chunk, ChunkId, Document, DocumentId, DocumentSummary
 from perimeter.core.principal import Principal
 
 Vector = array[float]
@@ -102,6 +102,10 @@ class DocumentStore(Protocol):
     def get_document(self, id: DocumentId, permitted: PermissionSet) -> Document | None: ...
 
     def list_documents(self, permitted: PermissionSet, *, limit: int) -> Sequence[Document]: ...
+
+    def catalog(self, *, limit: int) -> Sequence[DocumentSummary]:
+        """Every document's identity, source, and policy, text excluded. Admin use."""
+        ...
 
     def delete(self, id: DocumentId) -> None: ...
 

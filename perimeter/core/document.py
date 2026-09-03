@@ -83,6 +83,22 @@ class Document:
     def fingerprint(self) -> str:
         return policy_fingerprint(self.content_hash, self.policy)
 
+    @property
+    def summary(self) -> DocumentSummary:
+        return DocumentSummary(
+            id=self.id, source=self.source, policy=self.policy, content_hash=self.content_hash
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class DocumentSummary:
+    """A document's identity, source, and policy. No text: safe for admin listings."""
+
+    id: DocumentId
+    source: SourceRef
+    policy: AccessPolicy
+    content_hash: str
+
 
 @dataclass(frozen=True, slots=True)
 class Chunk:

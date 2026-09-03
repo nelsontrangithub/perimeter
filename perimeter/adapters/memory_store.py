@@ -9,7 +9,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from perimeter.core.acl import PermissionSet
-from perimeter.core.document import Chunk, ChunkId, Document, DocumentId
+from perimeter.core.document import Chunk, ChunkId, Document, DocumentId, DocumentSummary
 
 
 class MemoryStore:
@@ -59,6 +59,9 @@ class MemoryStore:
                 if len(out) >= limit:
                     break
         return out
+
+    def catalog(self, *, limit: int) -> Sequence[DocumentSummary]:
+        return [d.summary for d in list(self._documents.values())[: max(0, limit)]]
 
     def delete(self, id: DocumentId) -> None:
         for cid in self._chunks_by_document.pop(id, []):

@@ -174,3 +174,18 @@ def test_fingerprint_changes_with_text_or_policy_and_is_none_when_missing(
     doc3, chunks3 = _doc("f", AccessPolicy.from_rules([Grant(ALICE)]), text="two")
     store.put(doc3, chunks3)
     assert store.fingerprint(doc.id) not in (fp, doc2.fingerprint)
+
+
+def test_catalog_lists_every_document_without_text(store: DocumentStore) -> None:
+    for i in range(3):
+        d, c = _doc(
+            f"c{i}", AccessPolicy.from_rules([Grant(ALICE)]) if i else AccessPolicy.public()
+        )
+        store.put(d, c)
+    catalog = store.catalog(limit=10)
+    assert sorted(s.id for s in catalog) == ["c0", "c1", "c2"]
+    first = next(s for s in catalog if s.id == "c0")
+    assert first.policy == AccessPolicy.public()
+    assert first.source.title == "C0"
+    assert not hasattr(first, "text")
+    assert len(store.catalog(limit=2)) == 2

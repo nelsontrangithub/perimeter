@@ -44,3 +44,12 @@ input, select { font: inherit; padding: 0.35rem 0.5rem; border: 1px solid var(--
 .result { padding: 0.5rem 0.75rem; border-left: 3px solid var(--ok); background: color-mix(in srgb, var(--ok) 8%, transparent); }
 .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
 h3 { font-size: 0.95rem; margin: 1rem 0 0.5rem; color: var(--muted); }
+.pill { display: inline-block; padding: 0.1rem 0.5rem; border-radius: 999px; font-size: 0.85em; }
+.pill.ok { color: var(--ok); background: color-mix(in srgb, var(--ok) 12%, transparent); }
+.pill.deny { color: var(--deny); background: color-mix(in srgb, var(--deny) 12%, transparent); }
+tr.hidden-doc td { color: var(--muted); }
+.results { padding-left: 1.25rem; }
+.results li { margin-bottom: 0.75rem; }
+.cite { font-weight: 500; }
+blockquote { margin: 0.25rem 0 0; padding-left: 0.75rem; border-left: 2px solid var(--line); color: var(--muted); }
+input[type="number"] { min-width: 5rem; }

@@ -113,3 +113,23 @@ def test_permission_set_restrict_to_is_never_larger() -> None:
     assert set(smaller) == {ALICE, EVERYONE}
     assert smaller.is_subset_of(full)
     assert not full.is_subset_of(smaller)
+
+
+def test_explain_reports_matching_grants_and_denies() -> None:
+    policy = AccessPolicy.from_rules([Grant(ENG), Grant(ALICE), Deny(CONTRACTORS)])
+    decision = policy.explain(_perms(ALICE, ENG, EVERYONE))
+    assert decision.admitted
+    assert decision.matched_grants == frozenset({ALICE, ENG})
+    assert decision.matched_denies == frozenset()
+    denied = policy.explain(_perms(ALICE, CONTRACTORS, EVERYONE))
+    assert not denied.admitted
+    assert denied.matched_denies == frozenset({CONTRACTORS})
+    assert denied.reason == "denied via contractors"
+
+
+def test_explain_reasons_for_each_outcome() -> None:
+    policy = AccessPolicy.from_rules([Grant(ENG)])
+    assert policy.explain(PermissionSet.empty()).reason == "empty permission set"
+    assert policy.explain(_perms(BOB, EVERYONE)).reason == "no matching grant"
+    assert policy.explain(_perms(BOB, ENG, EVERYONE)).reason == "granted via eng"
+    assert AccessPolicy.nobody().explain(_perms(BOB, EVERYONE)).reason == "no grants"

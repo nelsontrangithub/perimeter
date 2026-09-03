@@ -93,6 +93,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/api/simulate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Simulate
+         * @description Preview the corpus as any principal: what they would see, and why.
+         */
+        post: operations["simulate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -168,6 +188,25 @@ export interface components {
             /** Root */
             root: string | null;
         };
+        /** DocumentDecision */
+        DocumentDecision: {
+            /** Connector */
+            connector: string;
+            /** Denies */
+            denies: string[];
+            /** Grants */
+            grants: string[];
+            /** Id */
+            id: string;
+            /** Reason */
+            reason: string;
+            /** Title */
+            title: string;
+            /** Uri */
+            uri: string;
+            /** Visible */
+            visible: boolean;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -236,6 +275,45 @@ export interface components {
             started_at: string;
             /** Unreadable */
             unreadable: number;
+        };
+        /** SimulateRequest */
+        SimulateRequest: {
+            /**
+             * Groups
+             * @default []
+             */
+            groups?: string[];
+            /**
+             * K
+             * @default 10
+             */
+            k?: number;
+            /**
+             * Limit
+             * @default 500
+             */
+            limit?: number;
+            /** Principal */
+            principal: string;
+            /** Query */
+            query?: string | null;
+        };
+        /** Simulation */
+        Simulation: {
+            /** Documents */
+            documents: components["schemas"]["DocumentDecision"][];
+            /** Effective Principals */
+            effective_principals: string[];
+            /** Principal */
+            principal: string;
+            /** Results */
+            results: {
+                [key: string]: unknown;
+            } | null;
+            /** Total */
+            total: number;
+            /** Visible Count */
+            visible_count: number;
         };
         /** ValidationError */
         ValidationError: {
@@ -423,6 +501,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["IndexHealth"];
+                };
+            };
+        };
+    };
+    simulate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SimulateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Simulation"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

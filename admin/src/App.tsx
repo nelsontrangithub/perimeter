@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Connectors } from "./pages/Connectors";
 import { IndexPage } from "./pages/Index";
 import { Overview } from "./pages/Overview";
+import { Simulator } from "./pages/Simulator";
 
 type Page = "overview" | "connectors" | "index" | "simulator";
 
@@ -35,12 +36,7 @@ export function App() {
         {page === "overview" && <Overview />}
         {page === "connectors" && <Connectors />}
         {page === "index" && <IndexPage />}
-        {page === "simulator" && (
-          <section>
-            <h2>{PAGES.find((p) => p.id === page)?.label}</h2>
-            <p>Coming in the next commits.</p>
-          </section>
-        )}
+        {page === "simulator" && <Simulator />}
       </main>
     </div>
   );
