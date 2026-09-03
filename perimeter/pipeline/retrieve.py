@@ -57,7 +57,10 @@ class Retriever:
             return PermissionSet.empty()
 
     def retrieve(self, request: RetrievalRequest) -> ScopedResult:
-        permitted = self.permissions_for(request)
+        return self.retrieve_with(request, self.permissions_for(request))
+
+    def retrieve_with(self, request: RetrievalRequest, permitted: PermissionSet) -> ScopedResult:
+        """Retrieve with an already-resolved permission set. Same guarantees as ``retrieve``."""
         if permitted.is_empty:
             return ScopedResult.empty(principal=request.principal, k=request.k)
 

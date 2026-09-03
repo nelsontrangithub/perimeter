@@ -7,7 +7,7 @@ talk itself into a different user's permissions by changing a parameter.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Protocol
 
 from mcp.server.mcpserver import Context, MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
@@ -15,7 +15,6 @@ from mcp.server.mcpserver.exceptions import ToolError
 from perimeter.core.acl import PermissionSet
 from perimeter.core.errors import AuthError, InvalidRequestError, PerimeterError
 from perimeter.core.query import RetrievalRequest, ScopedResult
-from perimeter.pipeline.retrieve import Retriever
 from perimeter.server.auth import GROUPS_HEADER, PRINCIPAL_HEADER, identity_from_headers
 
 RETRIEVE_DESCRIPTION = (
@@ -25,6 +24,14 @@ RETRIEVE_DESCRIPTION = (
     "ranked, and never returned. `returned` may be less than `k` when the caller's "
     "permitted set is small; that is the honest answer, not a filtering artefact."
 )
+
+
+class RetrievalService(Protocol):
+    """What the tool needs: a Retriever, traced or not."""
+
+    def permissions_for(self, request: RetrievalRequest) -> PermissionSet: ...
+
+    def retrieve(self, request: RetrievalRequest) -> ScopedResult: ...
 
 
 def result_to_payload(result: ScopedResult) -> dict[str, Any]:
@@ -52,7 +59,7 @@ def result_to_payload(result: ScopedResult) -> dict[str, Any]:
     }
 
 
-def build_mcp_server(retriever: Retriever, *, name: str = "perimeter") -> MCPServer[Any]:
+def build_mcp_server(retriever: RetrievalService, *, name: str = "perimeter") -> MCPServer[Any]:
     server: MCPServer[Any] = MCPServer(
         name,
         instructions=(
