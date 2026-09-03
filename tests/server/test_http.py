@@ -105,11 +105,36 @@ async def test_admin_acl_invalidate_endpoint(client: httpx.AsyncClient, runtime:
         RetrievalRequest(principal=Principal(PrincipalId("alice")), query="x", k=1)
     )
     assert runtime.acl_cache.stats.size == 1
-    response = await client.post("/admin/acl/invalidate", json={"principal": "alice"})
+    response = await client.post("/admin/api/acl/invalidate", json={"principal": "alice"})
     assert response.status_code == 200
     assert response.json() == {"invalidated": "alice"}
     assert runtime.acl_cache.stats.size == 0
-    response = await client.post("/admin/acl/invalidate", json={"all": True})
+    response = await client.post("/admin/api/acl/invalidate", json={"all": True})
     assert response.status_code == 200
-    response = await client.post("/admin/acl/invalidate", json={})
+    response = await client.post("/admin/api/acl/invalidate", json={})
     assert response.status_code == 422
+
+
+async def test_admin_console_is_served_when_dist_exists(tmp_path: Any) -> None:
+    dist = tmp_path / "dist"
+    dist.mkdir()
+    (dist / "index.html").write_text("<html><body>console</body></html>")
+    settings = Settings(data_dir=tmp_path / "data", admin_dist=dist)
+    app = build_app(build_runtime(settings))
+    async with app.router.lifespan_context(app):
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://127.0.0.1:8000"
+        ) as c:
+            page = await c.get("/admin/")
+            api = await c.get("/admin/api/openapi.json")
+    assert page.status_code == 200 and "console" in page.text
+    assert api.status_code == 200
+    assert "invalidateAcl" in api.text and "health" in api.text
+
+
+async def test_openapi_export_script_emits_schema(tmp_path: Any) -> None:
+    from perimeter.server.openapi import export_openapi
+
+    schema = export_openapi(tmp_path / "x")
+    assert schema["info"]["title"] == "Perimeter"
+    assert "/health" in schema["paths"]

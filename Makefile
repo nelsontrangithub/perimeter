@@ -1,4 +1,4 @@
-.PHONY: install test lint typecheck check bench run build-admin container clean
+.PHONY: install test test-invariants lint typecheck check bench bench-gate run build-admin generate-client generate-client-check admin-test container clean
 
 install:
 	uv sync --all-groups
@@ -30,6 +30,16 @@ run:
 
 build-admin:
 	cd admin && npm run build
+
+generate-client:
+	uv run python -m perimeter.server.openapi > admin/openapi.json
+	cd admin && npm run generate
+
+generate-client-check: generate-client
+	git diff --exit-code -- admin/openapi.json admin/src/api/schema.d.ts
+
+admin-test:
+	cd admin && npm run typecheck && npm test
 
 container:
 	docker build -t perimeter:local .

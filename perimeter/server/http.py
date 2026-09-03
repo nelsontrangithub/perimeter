@@ -14,6 +14,7 @@ from contextlib import asynccontextmanager
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
+from fastapi.staticfiles import StaticFiles
 from mcp.server.transport_security import TransportSecuritySettings
 from pydantic import BaseModel
 
@@ -89,26 +90,26 @@ def build_app(runtime: Runtime) -> FastAPI:
         title="Perimeter",
         version=runtime.version,
         lifespan=lifespan,
-        docs_url="/admin/docs",
-        openapi_url="/admin/openapi.json",
+        docs_url="/admin/api/docs",
+        openapi_url="/admin/api/openapi.json",
         redoc_url=None,
     )
     app.add_middleware(RequestScopeMiddleware)
 
-    @app.get("/health", tags=["ops"])
-    def health() -> dict[str, Any]:
-        return {
-            "status": "ok",
-            "version": runtime.version,
-            "documents": runtime.store.count_documents(),
-            "chunks": runtime.store.count_chunks(),
-            "index_size": runtime.index.size,
-            "embedder": runtime.embedder_name,
-            "store": runtime.store_name,
-            "reranker": "cohere" if runtime.reranker is not None else "none",
-        }
+    @app.get("/health", tags=["ops"], operation_id="health")
+    def health() -> Health:
+        return Health(
+            status="ok",
+            version=runtime.version,
+            documents=runtime.store.count_documents(),
+            chunks=runtime.store.count_chunks(),
+            index_size=runtime.index.size,
+            embedder=runtime.embedder_name,
+            store=runtime.store_name,
+            reranker="cohere" if runtime.reranker is not None else "none",
+        )
 
-    @app.post("/admin/acl/invalidate", tags=["admin"])
+    @app.post("/admin/api/acl/invalidate", tags=["admin"], operation_id="invalidateAcl")
     def acl_invalidate(body: AclInvalidate) -> dict[str, Any]:
         """The ADR-004 invalidation hook. Call on any membership change, either direction."""
         try:
@@ -127,7 +128,22 @@ def build_app(runtime: Runtime) -> FastAPI:
 
     for route in mcp_app.routes:
         app.router.routes.append(route)
+
+    dist = runtime.settings.admin_dist
+    if dist is not None and dist.is_dir():
+        app.mount("/admin", StaticFiles(directory=dist, html=True), name="admin-console")
     return app
+
+
+class Health(BaseModel):
+    status: str
+    version: str
+    documents: int
+    chunks: int
+    index_size: int
+    embedder: str
+    store: str
+    reranker: str
 
 
 class AclInvalidate(BaseModel):
