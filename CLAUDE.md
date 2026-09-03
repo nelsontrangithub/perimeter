@@ -110,8 +110,11 @@ Where each is enforced in code:
   when the permitted set is empty. `index/filtered_search.py` independently returns nothing
   for an empty allow-list rather than an unfiltered scan.
 - INV-5: `adapters/caching_acl_resolver.py` never serves a stale entry on upstream error
-  (it returns the empty set: fail closed), and `revoke()` evicts synchronously before
-  returning. Only grants can lag, bounded by the TTL.
+  (it returns the empty set: fail closed), and `invalidate()` evicts synchronously before
+  returning. Only grants can lag, bounded by the TTL. "Revocation" includes a membership
+  *addition* when explicit denies are in use, because admission is only monotone for
+  grant-only policies (`tests/core/test_properties.py` proves both halves; ADR-004
+  explains). The hook therefore fires on any membership change, in either direction.
 
 ## ADR index
 

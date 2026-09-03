@@ -101,3 +101,11 @@ def test_invalid_principal_error_is_typed_domain_error() -> None:
 def test_group_graph_parents_of_unknown_group_is_empty() -> None:
     graph = GroupGraph.from_edges({"eng": ["staff"]})
     assert graph.parents_of(_g("nope")) == frozenset()
+
+
+def test_with_edge_adds_membership_without_mutating_original() -> None:
+    graph = GroupGraph.from_edges({"eng": ["staff"]})
+    bigger = graph.with_edge(_g("staff"), _g("all"))
+    assert graph.parents_of(_g("staff")) == frozenset()
+    assert bigger.parents_of(_g("staff")) == frozenset({_g("all")})
+    assert bigger.parents_of(_g("eng")) == frozenset({_g("staff")})

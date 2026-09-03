@@ -29,6 +29,18 @@ Revocations that are *not* signalled (an upstream that offers no hook) take effe
 the TTL, which is why the TTL is a security parameter: it is the maximum exposure window
 for an unsignalled revocation.
 
+**What "revocation" means under explicit denies.** The property tests in
+`tests/core/test_properties.py` establish that admission is monotone in the permission set
+only for grant-only policies: with a smaller set you can lose access but never gain it.
+An explicit `Deny` breaks that. If a caller is *added* to a group that a document denies,
+their access to that document is revoked, and a cached entry that has not yet learned of
+the new membership is *less* restrictive than reality for that document. So the
+invalidation hook is not "call me on removals"; it is "call me on any membership change",
+and the cache treats both directions as a revocation. Grant-only connectors (Google Drive
+has no deny concept) get the stronger guarantee for free; a deploy that uses denies must
+wire membership additions into the hook or accept the TTL as the bound. This is recorded
+here so nobody later "optimises" the hook to fire on removals only.
+
 Why 60 seconds. It is short enough that an unsignalled revocation is bounded to about a
 minute, which matches the propagation delay of the directory systems Perimeter fronts
 (Google Workspace group changes are documented as taking up to several minutes to

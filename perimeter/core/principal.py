@@ -80,6 +80,12 @@ class GroupGraph:
     def parents_of(self, group: GroupId) -> frozenset[GroupId]:
         return self._parents.get(group, frozenset())
 
+    def with_edge(self, child: GroupId, parent: GroupId) -> GroupGraph:
+        """A new graph in which ``child`` is also a member of ``parent``."""
+        parents = dict(self._parents)
+        parents[child] = parents.get(child, frozenset()) | {parent}
+        return GroupGraph(parents)
+
 
 def effective_principals(principal: Principal, graph: GroupGraph) -> frozenset[PrincipalId]:
     """Resolve the full set of principals a caller *is*.
