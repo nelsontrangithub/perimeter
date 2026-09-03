@@ -49,3 +49,7 @@ class AclResolutionError(PerimeterError):
 
 class AuthError(PerimeterError):
     """The caller's forwarded identity is missing or malformed. Never echoes header values."""
+
+
+class ConnectorError(PerimeterError):
+    """A connector could not enumerate, fetch, or read ACLs. Never includes tokens."""

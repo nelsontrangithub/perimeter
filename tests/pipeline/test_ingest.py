@@ -235,3 +235,37 @@ def test_document_from_raw_builds_hash(tmp_path: Path) -> None:
     doc = raw.to_document()
     assert isinstance(doc, Document)
     assert doc.content_hash
+
+
+def test_source_failure_mid_stream_still_indexes_received_documents() -> None:
+    from collections.abc import Iterator
+
+    from perimeter.core.errors import ConnectorError
+
+    store, index, embedder = MemoryStore(), RecordingIndex(), FakeEmbedder()
+
+    def source() -> Iterator[RawDocument]:
+        yield _raw("ok", "arrived fine", AccessPolicy.public())
+        raise ConnectorError("upstream failed")
+
+    with pytest.raises(ConnectorError):
+        Ingestor(store=store, index=index, embedder=embedder).ingest(source())
+    assert store.count_documents() == 1
+    assert index.size >= 1, "stored documents must be indexed even when the source fails later"
+
+
+def test_embedding_failure_removes_stored_documents_so_retry_can_reingest() -> None:
+    from perimeter.core.errors import EmbeddingError
+
+    class FailingEmbedder(FakeEmbedder):
+        def embed_documents(self, texts: Sequence[str]) -> Sequence[Vector]:
+            raise EmbeddingError("embed: HTTP 500")
+
+    store, index = MemoryStore(), RecordingIndex()
+    doc = _raw("a", "text", AccessPolicy.public())
+    with pytest.raises(EmbeddingError):
+        Ingestor(store=store, index=index, embedder=FailingEmbedder()).ingest([doc])
+    assert store.count_documents() == 0
+    assert store.fingerprint(DocumentId("a")) is None
+    report = Ingestor(store=store, index=index, embedder=FakeEmbedder()).ingest([doc])
+    assert report.documents == 1

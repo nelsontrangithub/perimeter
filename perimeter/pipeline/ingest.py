@@ -22,7 +22,7 @@ from dataclasses import dataclass, field
 
 from perimeter.core.acl import AccessPolicy
 from perimeter.core.document import Chunk, Document, DocumentId, SourceRef
-from perimeter.core.errors import InvalidDocumentError
+from perimeter.core.errors import EmbeddingError, InvalidDocumentError
 from perimeter.core.ports import DocumentStore, EmbeddingModel, IndexEntry, VectorIndex
 
 _PARAGRAPH = "\n\n"
@@ -116,24 +116,36 @@ class Ingestor:
         self._embed_batch = max(1, embed_batch)
 
     def ingest(self, documents: Iterable[RawDocument]) -> IngestReport:
+        """Ingest every document ``documents`` yields.
+
+        If the source raises part-way (a connector failure), documents already
+        received are still embedded and indexed before the error propagates, so
+        the store and the index never disagree about a document that was stored.
+        If embedding fails, the affected documents are removed from the store so
+        their fingerprint cannot block a retry.
+        """
         report = IngestReport()
         pending: list[Chunk] = []
-        for raw in documents:
-            doc = raw.to_document()
-            if self._store.fingerprint(doc.id) == doc.fingerprint:
-                report.skipped_unchanged += 1
-                continue
-            chunks = self._chunk(doc)
-            self._store.put(doc, chunks)
-            self._index.remove_document(doc.id)
-            report.documents += 1
-            report.chunks += len(chunks)
-            pending.extend(chunks)
-            if len(pending) >= self._embed_batch:
-                self._embed_and_index(pending)
-                pending = []
-        if pending:
-            self._embed_and_index(pending)
+        pending_docs: list[DocumentId] = []
+        try:
+            for raw in documents:
+                doc = raw.to_document()
+                if self._store.fingerprint(doc.id) == doc.fingerprint:
+                    report.skipped_unchanged += 1
+                    continue
+                chunks = self._chunk(doc)
+                self._store.put(doc, chunks)
+                self._index.remove_document(doc.id)
+                report.documents += 1
+                report.chunks += len(chunks)
+                pending.extend(chunks)
+                pending_docs.append(doc.id)
+                if len(pending) >= self._embed_batch:
+                    self._embed_and_index(pending, pending_docs)
+                    pending, pending_docs = [], []
+        finally:
+            if pending:
+                self._embed_and_index(pending, pending_docs)
         return report
 
     def _chunk(self, doc: Document) -> list[Chunk]:
@@ -143,8 +155,13 @@ class Ingestor:
                 chunks.append(Chunk.from_document(doc, ordinal=ordinal, start=start, end=end))
         return chunks
 
-    def _embed_and_index(self, chunks: list[Chunk]) -> None:
-        vectors = self._embedder.embed_documents([c.text for c in chunks])
+    def _embed_and_index(self, chunks: list[Chunk], document_ids: list[DocumentId]) -> None:
+        try:
+            vectors = self._embedder.embed_documents([c.text for c in chunks])
+        except EmbeddingError:
+            for doc_id in document_ids:
+                self._store.delete(doc_id)
+            raise
         self._index.add(
             IndexEntry(chunk_id=c.id, vector=v, policy=c.policy)
             for c, v in zip(chunks, vectors, strict=True)
