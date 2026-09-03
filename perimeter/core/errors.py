@@ -21,3 +21,27 @@ class InvalidPrincipalError(PerimeterError):
 
 class InvalidDocumentError(PerimeterError):
     """A document, chunk, or source reference is malformed."""
+
+
+class InvalidRequestError(PerimeterError):
+    """A retrieval request is malformed (bad k, blank or oversized query)."""
+
+
+class EmbeddingError(PerimeterError):
+    """The embedding model failed. Never includes the text that was being embedded."""
+
+
+class RerankError(PerimeterError):
+    """The reranker failed. Never includes candidate text."""
+
+
+class VectorIndexError(PerimeterError):
+    """The vector index is missing, corrupt, or was asked something it cannot do."""
+
+
+class StoreError(PerimeterError):
+    """The document store failed."""
+
+
+class AclResolutionError(PerimeterError):
+    """Permissions could not be resolved. Callers must treat this as an empty set."""
