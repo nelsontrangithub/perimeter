@@ -13,14 +13,15 @@ from collections.abc import AsyncIterator, Awaitable, Callable, MutableMapping
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Response
 from fastapi.staticfiles import StaticFiles
 from mcp.server.transport_security import TransportSecuritySettings
 from pydantic import BaseModel
 
-from perimeter.core.errors import AuthError, InvalidPrincipalError
+from perimeter.core.errors import AuthError, ConnectorError, InvalidPrincipalError
 from perimeter.core.principal import parse_group_id, parse_principal_id
 from perimeter.server.auth import request_scope, tokens_from_headers
+from perimeter.server.connectors import ConnectorConfig, IngestRun, Kind
 from perimeter.server.wiring import Runtime
 
 Scope = MutableMapping[str, Any]
@@ -126,6 +127,71 @@ def build_app(runtime: Runtime) -> FastAPI:
             raise HTTPException(status_code=422, detail=str(exc)) from None
         raise HTTPException(status_code=422, detail="one of principal, group, or all is required")
 
+    @app.get("/admin/api/connectors", tags=["admin"], operation_id="listConnectors")
+    def list_connectors() -> list[ConnectorView]:
+        return [_connector_view(runtime, c) for c in runtime.connectors.list()]
+
+    @app.post(
+        "/admin/api/connectors", tags=["admin"], operation_id="createConnector", status_code=201
+    )
+    def create_connector(body: ConnectorCreate) -> ConnectorView:
+        config = ConnectorConfig(name=body.name, kind=body.kind, root=body.root)
+        try:
+            runtime.connectors.add(config)
+        except ConnectorError as exc:
+            status = 409 if "already exists" in str(exc) else 422
+            raise HTTPException(status_code=status, detail=str(exc)) from None
+        return _connector_view(runtime, config)
+
+    @app.delete(
+        "/admin/api/connectors/{name}",
+        tags=["admin"],
+        operation_id="deleteConnector",
+        status_code=204,
+        response_class=Response,
+    )
+    def delete_connector(name: str) -> Response:
+        try:
+            runtime.connectors.remove(name)
+        except ConnectorError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from None
+        return Response(status_code=204)
+
+    @app.post("/admin/api/connectors/{name}/ingest", tags=["admin"], operation_id="ingestConnector")
+    def ingest_connector(name: str) -> IngestRunView:
+        try:
+            runtime.connectors.get(name)
+        except ConnectorError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from None
+        run = runtime.connectors.ingest(name, runtime.ingestor, runtime.index)
+        return IngestRunView.from_run(run)
+
+    @app.get("/admin/api/index", tags=["admin"], operation_id="indexHealth")
+    def index_health() -> IndexHealth:
+        stats = runtime.index.stats()
+        cache = runtime.acl_cache.stats
+        return IndexHealth(
+            rows=stats.rows,
+            staged=stats.staged,
+            dimension=stats.dimension,
+            quantizer_fitted=stats.quantizer_fitted,
+            rescore_multiplier=stats.rescore_multiplier,
+            acl_principals=stats.acl_principals,
+            files=stats.files,
+            bytes_on_disk=stats.bytes_on_disk,
+            bytes_per_chunk=stats.bytes_per_chunk,
+            documents=runtime.store.count_documents(),
+            chunks=runtime.store.count_chunks(),
+            acl_cache=AclCacheView(
+                ttl_seconds=runtime.acl_cache.ttl_seconds,
+                hits=cache.hits,
+                misses=cache.misses,
+                errors=cache.errors,
+                evictions=cache.evictions,
+                size=cache.size,
+            ),
+        )
+
     for route in mcp_app.routes:
         app.router.routes.append(route)
 
@@ -133,6 +199,77 @@ def build_app(runtime: Runtime) -> FastAPI:
     if dist is not None and dist.is_dir():
         app.mount("/admin", StaticFiles(directory=dist, html=True), name="admin-console")
     return app
+
+
+class ConnectorCreate(BaseModel):
+    name: str
+    kind: Kind
+    root: str | None = None
+
+
+class IngestRunView(BaseModel):
+    started_at: str
+    duration_seconds: float
+    documents: int
+    chunks: int
+    skipped_unchanged: int
+    unreadable: int
+    error: str | None
+
+    @classmethod
+    def from_run(cls, run: IngestRun) -> IngestRunView:
+        return cls(
+            started_at=run.started_at,
+            duration_seconds=run.duration_seconds,
+            documents=run.documents,
+            chunks=run.chunks,
+            skipped_unchanged=run.skipped_unchanged,
+            unreadable=run.unreadable,
+            error=run.error,
+        )
+
+
+class ConnectorView(BaseModel):
+    name: str
+    kind: Kind
+    root: str | None
+    needs_request_token: bool
+    last_run: IngestRunView | None
+
+
+def _connector_view(runtime: Runtime, config: ConnectorConfig) -> ConnectorView:
+    run = runtime.connectors.last_run(config.name)
+    return ConnectorView(
+        name=config.name,
+        kind=config.kind,
+        root=config.root,
+        needs_request_token=config.kind == "gdrive",
+        last_run=IngestRunView.from_run(run) if run else None,
+    )
+
+
+class AclCacheView(BaseModel):
+    ttl_seconds: float
+    hits: int
+    misses: int
+    errors: int
+    evictions: int
+    size: int
+
+
+class IndexHealth(BaseModel):
+    rows: int
+    staged: int
+    dimension: int
+    quantizer_fitted: bool
+    rescore_multiplier: int
+    acl_principals: int
+    files: dict[str, int]
+    bytes_on_disk: int
+    bytes_per_chunk: float
+    documents: int
+    chunks: int
+    acl_cache: AclCacheView
 
 
 class Health(BaseModel):

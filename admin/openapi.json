@@ -1,6 +1,44 @@
 {
   "components": {
     "schemas": {
+      "AclCacheView": {
+        "properties": {
+          "errors": {
+            "title": "Errors",
+            "type": "integer"
+          },
+          "evictions": {
+            "title": "Evictions",
+            "type": "integer"
+          },
+          "hits": {
+            "title": "Hits",
+            "type": "integer"
+          },
+          "misses": {
+            "title": "Misses",
+            "type": "integer"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          },
+          "ttl_seconds": {
+            "title": "Ttl Seconds",
+            "type": "number"
+          }
+        },
+        "required": [
+          "ttl_seconds",
+          "hits",
+          "misses",
+          "errors",
+          "evictions",
+          "size"
+        ],
+        "title": "AclCacheView",
+        "type": "object"
+      },
       "AclInvalidate": {
         "properties": {
           "all": {
@@ -32,6 +70,89 @@
           }
         },
         "title": "AclInvalidate",
+        "type": "object"
+      },
+      "ConnectorCreate": {
+        "properties": {
+          "kind": {
+            "enum": [
+              "filesystem",
+              "gdrive"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "root": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Root"
+          }
+        },
+        "required": [
+          "name",
+          "kind"
+        ],
+        "title": "ConnectorCreate",
+        "type": "object"
+      },
+      "ConnectorView": {
+        "properties": {
+          "kind": {
+            "enum": [
+              "filesystem",
+              "gdrive"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "last_run": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IngestRunView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "needs_request_token": {
+            "title": "Needs Request Token",
+            "type": "boolean"
+          },
+          "root": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Root"
+          }
+        },
+        "required": [
+          "name",
+          "kind",
+          "root",
+          "needs_request_token",
+          "last_run"
+        ],
+        "title": "ConnectorView",
         "type": "object"
       },
       "HTTPValidationError": {
@@ -93,6 +214,126 @@
           "reranker"
         ],
         "title": "Health",
+        "type": "object"
+      },
+      "IndexHealth": {
+        "properties": {
+          "acl_cache": {
+            "$ref": "#/components/schemas/AclCacheView"
+          },
+          "acl_principals": {
+            "title": "Acl Principals",
+            "type": "integer"
+          },
+          "bytes_on_disk": {
+            "title": "Bytes On Disk",
+            "type": "integer"
+          },
+          "bytes_per_chunk": {
+            "title": "Bytes Per Chunk",
+            "type": "number"
+          },
+          "chunks": {
+            "title": "Chunks",
+            "type": "integer"
+          },
+          "dimension": {
+            "title": "Dimension",
+            "type": "integer"
+          },
+          "documents": {
+            "title": "Documents",
+            "type": "integer"
+          },
+          "files": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Files",
+            "type": "object"
+          },
+          "quantizer_fitted": {
+            "title": "Quantizer Fitted",
+            "type": "boolean"
+          },
+          "rescore_multiplier": {
+            "title": "Rescore Multiplier",
+            "type": "integer"
+          },
+          "rows": {
+            "title": "Rows",
+            "type": "integer"
+          },
+          "staged": {
+            "title": "Staged",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "rows",
+          "staged",
+          "dimension",
+          "quantizer_fitted",
+          "rescore_multiplier",
+          "acl_principals",
+          "files",
+          "bytes_on_disk",
+          "bytes_per_chunk",
+          "documents",
+          "chunks",
+          "acl_cache"
+        ],
+        "title": "IndexHealth",
+        "type": "object"
+      },
+      "IngestRunView": {
+        "properties": {
+          "chunks": {
+            "title": "Chunks",
+            "type": "integer"
+          },
+          "documents": {
+            "title": "Documents",
+            "type": "integer"
+          },
+          "duration_seconds": {
+            "title": "Duration Seconds",
+            "type": "number"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "skipped_unchanged": {
+            "title": "Skipped Unchanged",
+            "type": "integer"
+          },
+          "started_at": {
+            "title": "Started At",
+            "type": "string"
+          },
+          "unreadable": {
+            "title": "Unreadable",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "started_at",
+          "duration_seconds",
+          "documents",
+          "chunks",
+          "skipped_unchanged",
+          "unreadable",
+          "error"
+        ],
+        "title": "IngestRunView",
         "type": "object"
       },
       "ValidationError": {
@@ -182,6 +423,168 @@
           }
         },
         "summary": "Acl Invalidate",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/api/connectors": {
+      "get": {
+        "operationId": "listConnectors",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ConnectorView"
+                  },
+                  "title": "Response Listconnectors",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Connectors",
+        "tags": [
+          "admin"
+        ]
+      },
+      "post": {
+        "operationId": "createConnector",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConnectorCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectorView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Connector",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/api/connectors/{name}": {
+      "delete": {
+        "operationId": "deleteConnector",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Connector",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/api/connectors/{name}/ingest": {
+      "post": {
+        "operationId": "ingestConnector",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestRunView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ingest Connector",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/api/index": {
+      "get": {
+        "operationId": "indexHealth",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IndexHealth"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Index Health",
         "tags": [
           "admin"
         ]

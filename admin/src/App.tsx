@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { Connectors } from "./pages/Connectors";
+import { IndexPage } from "./pages/Index";
 import { Overview } from "./pages/Overview";
 
 type Page = "overview" | "connectors" | "index" | "simulator";
@@ -31,7 +33,9 @@ export function App() {
       </header>
       <main>
         {page === "overview" && <Overview />}
-        {page !== "overview" && (
+        {page === "connectors" && <Connectors />}
+        {page === "index" && <IndexPage />}
+        {page === "simulator" && (
           <section>
             <h2>{PAGES.find((p) => p.id === page)?.label}</h2>
             <p>Coming in the next commits.</p>

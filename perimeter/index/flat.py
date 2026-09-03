@@ -131,6 +131,25 @@ class AclTable:
             )
 
 
+@dataclass(frozen=True, slots=True)
+class IndexStats:
+    rows: int
+    staged: int
+    dimension: int
+    quantizer_fitted: bool
+    rescore_multiplier: int
+    acl_principals: int
+    files: dict[str, int]
+
+    @property
+    def bytes_on_disk(self) -> int:
+        return sum(self.files.values())
+
+    @property
+    def bytes_per_chunk(self) -> float:
+        return self.bytes_on_disk / self.rows if self.rows else 0.0
+
+
 @dataclass(slots=True)
 class _Staged:
     vectors: list[F32]
@@ -270,6 +289,22 @@ class FlatIndex:
     @property
     def acl(self) -> AclTable:
         return self._acl
+
+    def stats(self) -> IndexStats:
+        files: dict[str, int] = {}
+        for name in ("binary.bin", "int8.bin", "ids.json", "acl.npz", "quant.npz", "meta.json"):
+            f = self._path / name
+            if f.exists():
+                files[name] = f.stat().st_size
+        return IndexStats(
+            rows=len(self._ids),
+            staged=len(self._staged),
+            dimension=self._dimension,
+            quantizer_fitted=self._quantizer is not None,
+            rescore_multiplier=self._rescore_multiplier,
+            acl_principals=len(self._acl.principals),
+            files=files,
+        )
 
     def chunk_id_at(self, row: int) -> ChunkId:
         self._flush_if_staged()

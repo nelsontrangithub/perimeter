@@ -19,6 +19,7 @@ from perimeter.core.ports import AclResolver, DocumentStore, EmbeddingModel, Rer
 from perimeter.index.flat import FlatIndex
 from perimeter.pipeline.ingest import Ingestor
 from perimeter.pipeline.retrieve import Retriever
+from perimeter.server.connectors import ConnectorRegistry
 from perimeter.server.mcp import build_mcp_server
 from perimeter.server.settings import Settings
 from perimeter.server.telemetry import Telemetry, TracedRetriever
@@ -39,6 +40,7 @@ class Runtime:
     ingestor: Ingestor
     telemetry: Telemetry
     mcp_server: MCPServer[Any]
+    connectors: ConnectorRegistry
     version: str = __version__
 
 
@@ -100,4 +102,5 @@ def build_runtime(settings: Settings, *, telemetry: Telemetry | None = None) -> 
         ingestor=ingestor,
         telemetry=telemetry,
         mcp_server=build_mcp_server(retriever),
+        connectors=ConnectorRegistry(settings.data_dir / "connectors.json"),
     )
