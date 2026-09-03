@@ -95,3 +95,21 @@ async def test_request_scope_is_per_request(runtime: Runtime) -> None:
 async def test_malformed_token_header_is_rejected_with_401(client: httpx.AsyncClient) -> None:
     response = await client.get("/health", headers={f"{TOKEN_HEADER_PREFIX}gdrive": "   "})
     assert response.status_code == 401
+
+
+async def test_admin_acl_invalidate_endpoint(client: httpx.AsyncClient, runtime: Runtime) -> None:
+    from perimeter.core.principal import Principal, PrincipalId
+    from perimeter.core.query import RetrievalRequest
+
+    runtime.retriever.permissions_for(
+        RetrievalRequest(principal=Principal(PrincipalId("alice")), query="x", k=1)
+    )
+    assert runtime.acl_cache.stats.size == 1
+    response = await client.post("/admin/acl/invalidate", json={"principal": "alice"})
+    assert response.status_code == 200
+    assert response.json() == {"invalidated": "alice"}
+    assert runtime.acl_cache.stats.size == 0
+    response = await client.post("/admin/acl/invalidate", json={"all": True})
+    assert response.status_code == 200
+    response = await client.post("/admin/acl/invalidate", json={})
+    assert response.status_code == 422

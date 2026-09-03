@@ -16,9 +16,12 @@ is a leak.
 `adapters/caching_acl_resolver.py` wraps any `AclResolver` with:
 
 1. An explicit TTL, default 60 seconds, configured by `PERIMETER_ACL_TTL_SECONDS`.
-2. An invalidation hook, `revoke(principal_id)`, which evicts synchronously before
-   returning. Anything that learns of a revocation (a connector webhook, an admin action,
-   a directory sync) calls it.
+2. An invalidation hook, `invalidate(principal_id)` (plus `invalidate_group(group)` and
+   `invalidate_all()`), which evicts synchronously before returning, exposed over HTTP as
+   `POST /admin/acl/invalidate`. Anything that learns of a membership change (a connector
+   webhook, an admin action, a directory sync) calls it. `restrict(principal_id, group)`
+   shrinks a cached entry in place for the case where the caller knows exactly which
+   membership went away and does not want to pay for a refetch.
 3. No stale-on-error. When an entry has expired and the upstream resolver fails, the
    cache returns the empty permission set. It never serves the expired entry. Combined
    with INV-4, an upstream outage means callers see nothing, not everything.

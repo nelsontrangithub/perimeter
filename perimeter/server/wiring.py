@@ -8,6 +8,8 @@ from typing import Any
 from mcp.server.mcpserver import MCPServer
 
 from perimeter import __version__
+from perimeter.adapters.caching_acl_resolver import CachingAclResolver
+from perimeter.adapters.clock import SystemClock
 from perimeter.adapters.cohere_embeddings import CohereEmbeddings
 from perimeter.adapters.cohere_rerank import CohereReranker
 from perimeter.adapters.local_embeddings import LocalEmbeddings
@@ -32,6 +34,7 @@ class Runtime:
     embedder_name: str
     reranker: Reranker | None
     resolver: AclResolver
+    acl_cache: CachingAclResolver
     retriever: TracedRetriever
     ingestor: Ingestor
     telemetry: Telemetry
@@ -61,10 +64,13 @@ def build_embedder(settings: Settings) -> tuple[EmbeddingModel, Reranker | None,
     return LocalEmbeddings(dimension=settings.embedding_dimension), None, "local"
 
 
-def build_resolver(settings: Settings) -> AclResolver:
-    if settings.groups_file:
-        return StaticAclResolver.from_file(settings.groups_file)
-    return StaticAclResolver()
+def build_resolver(settings: Settings) -> CachingAclResolver:
+    inner: AclResolver = (
+        StaticAclResolver.from_file(settings.groups_file)
+        if settings.groups_file
+        else StaticAclResolver()
+    )
+    return CachingAclResolver(inner, clock=SystemClock(), ttl_seconds=settings.acl_ttl_seconds)
 
 
 def build_runtime(settings: Settings, *, telemetry: Telemetry | None = None) -> Runtime:
@@ -89,6 +95,7 @@ def build_runtime(settings: Settings, *, telemetry: Telemetry | None = None) -> 
         embedder_name=embedder_name,
         reranker=reranker,
         resolver=resolver,
+        acl_cache=resolver,
         retriever=retriever,
         ingestor=ingestor,
         telemetry=telemetry,

@@ -13,10 +13,12 @@ from collections.abc import AsyncIterator, Awaitable, Callable, MutableMapping
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from mcp.server.transport_security import TransportSecuritySettings
+from pydantic import BaseModel
 
-from perimeter.core.errors import AuthError
+from perimeter.core.errors import AuthError, InvalidPrincipalError
+from perimeter.core.principal import parse_group_id, parse_principal_id
 from perimeter.server.auth import request_scope, tokens_from_headers
 from perimeter.server.wiring import Runtime
 
@@ -106,6 +108,29 @@ def build_app(runtime: Runtime) -> FastAPI:
             "reranker": "cohere" if runtime.reranker is not None else "none",
         }
 
+    @app.post("/admin/acl/invalidate", tags=["admin"])
+    def acl_invalidate(body: AclInvalidate) -> dict[str, Any]:
+        """The ADR-004 invalidation hook. Call on any membership change, either direction."""
+        try:
+            if body.all:
+                runtime.acl_cache.invalidate_all()
+                return {"invalidated": "all"}
+            if body.principal is not None:
+                runtime.acl_cache.invalidate(parse_principal_id(body.principal))
+                return {"invalidated": body.principal}
+            if body.group is not None:
+                runtime.acl_cache.invalidate_group(parse_group_id(body.group))
+                return {"invalidated": body.group}
+        except InvalidPrincipalError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from None
+        raise HTTPException(status_code=422, detail="one of principal, group, or all is required")
+
     for route in mcp_app.routes:
         app.router.routes.append(route)
     return app
+
+
+class AclInvalidate(BaseModel):
+    principal: str | None = None
+    group: str | None = None
+    all: bool = False
