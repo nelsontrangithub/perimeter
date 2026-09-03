@@ -46,7 +46,7 @@ markers = [
 [tool.ruff]
 line-length = 100
 target-version = "py312"
-src = ["perimeter", "tests", "bench"]
+src = ["."]
 
 [tool.ruff.lint]
 select = [
@@ -80,3 +80,6 @@ files = ["perimeter", "tests", "bench"]
 [[tool.mypy.overrides]]
 module = ["hypothesis.*"]
 ignore_missing_imports = true
+
+[tool.ruff.lint.isort]
+known-first-party = ["perimeter", "bench", "tests"]
