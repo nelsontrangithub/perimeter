@@ -83,10 +83,13 @@ class ScopedResult:
     principal: Principal
     requested_k: int
     chunks: tuple[ScoredChunk, ...]
+    candidates: int = 0
+    """Permitted candidates the index produced before reranking. Never exceeds the
+    caller's permitted set; may be less than ``requested_k`` when the set is small."""
 
     @classmethod
     def empty(cls, *, principal: Principal, k: int) -> ScopedResult:
-        return cls(principal=principal, requested_k=k, chunks=())
+        return cls(principal=principal, requested_k=k, chunks=(), candidates=0)
 
     @property
     def returned(self) -> int:

@@ -71,3 +71,47 @@ def test_inv2_index_scores_only_permitted_rows(
         assert {int(h.chunk_id[1:]) for h in hits} == admitted, (
             "k is preserved over the permitted set"
         )
+
+
+# --- pipeline-level half -----------------------------------------------------
+
+
+def test_inv2_reranker_input_is_subset_of_permitted() -> None:
+    """Every chunk the reranker sees is admitted by the caller's permission set, and
+    the index was asked with that permission set (filtering requested inside the
+    scan, not applied after)."""
+    from perimeter.core.acl import Deny, Grant
+    from perimeter.core.principal import GroupGraph, GroupId, Principal
+    from perimeter.core.query import RetrievalRequest
+    from perimeter.pipeline.retrieve import Retriever
+    from tests.pipeline.fakes import SpyReranker, StaticResolver, build_corpus, raw
+
+    eng = GroupId(PrincipalId("eng"))
+    contractors = GroupId(PrincipalId("contractors"))
+    docs = [
+        raw("pub", "apples apples apples", AccessPolicy.public()),
+        raw("eng", "apples apples apples eng", AccessPolicy.from_rules([Grant(eng)])),
+        raw(
+            "noc",
+            "apples apples apples noc",
+            AccessPolicy.from_rules([Grant(EVERYONE), Deny(contractors)]),
+        ),
+        raw("nobody", "apples apples apples nobody", AccessPolicy.nobody()),
+    ]
+    store, index, embedder = build_corpus(docs)
+    reranker = SpyReranker()
+    retriever = Retriever(
+        resolver=StaticResolver(), embedder=embedder, index=index, store=store, reranker=reranker
+    )
+
+    for caller in (
+        Principal(id=PrincipalId("alice")),
+        Principal(id=PrincipalId("bob"), groups=frozenset({eng})),
+        Principal(id=PrincipalId("carol"), groups=frozenset({contractors})),
+    ):
+        permitted = PermissionSet.resolve(caller, GroupGraph.empty())
+        retriever.retrieve(RetrievalRequest(principal=caller, query="apples", k=10))
+        assert index.search_calls[-1][0] == permitted
+        for chunk in reranker.received[-1]:
+            assert chunk.policy.admits(permitted), "reranker received an unpermitted chunk"
+        assert reranker.received[-1], "reranker should have received permitted candidates"
