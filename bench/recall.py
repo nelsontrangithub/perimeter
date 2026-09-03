@@ -15,15 +15,25 @@ from perimeter.index.flat import FlatIndex
 from perimeter.index.quantize import F32
 
 ALLOWED = PrincipalId("allowed")
+SELECT = PrincipalId("select")
 CALLER = PermissionSet.of(PrincipalId("caller"), ALLOWED, EVERYONE)
+SELECT_CALLER = PermissionSet.of(PrincipalId("caller"), SELECT, EVERYONE)
+
+
+def policies_for(permitted_mask: np.ndarray) -> list[AccessPolicy]:
+    """Every row is granted to ALLOWED; rows where ``permitted_mask`` is True also to SELECT.
+
+    A caller holding ALLOWED sees the whole corpus; one holding SELECT sees the mask.
+    """
+    both = AccessPolicy(frozenset({ALLOWED, SELECT}))
+    allowed_only = AccessPolicy(frozenset({ALLOWED}))
+    return [both if m else allowed_only for m in permitted_mask.tolist()]
 
 
 def build_index(index: FlatIndex, corpus: F32, permitted_mask: np.ndarray) -> None:
-    """Load ``corpus`` into ``index``; rows where ``permitted_mask`` is False admit nobody."""
-    granted = AccessPolicy(frozenset({ALLOWED}))
-    nobody = AccessPolicy.nobody()
+    policies = policies_for(permitted_mask)
     index.add(
-        IndexEntry(ChunkId(f"c{i}"), as_vector(corpus[i]), granted if permitted_mask[i] else nobody)
+        IndexEntry(ChunkId(f"c{i}"), as_vector(corpus[i]), policies[i])
         for i in range(corpus.shape[0])
     )
     index.flush()
@@ -45,12 +55,18 @@ class RecallResult:
 
 
 def recall_at_k(
-    index: FlatIndex, corpus: F32, queries: F32, permitted_mask: np.ndarray, *, k: int = 10
+    index: FlatIndex,
+    corpus: F32,
+    queries: F32,
+    permitted_mask: np.ndarray,
+    *,
+    caller: PermissionSet,
+    k: int = 10,
 ) -> RecallResult:
     hits_total = 0
     for q in queries:
         exact = exact_top_k(corpus, permitted_mask, q, k)
-        got = {int(h.chunk_id[1:]) for h in filtered_search(index, as_vector(q), CALLER, k)}
+        got = {int(h.chunk_id[1:]) for h in filtered_search(index, as_vector(q), caller, k)}
         hits_total += len(exact & got)
     return RecallResult(
         k=k,

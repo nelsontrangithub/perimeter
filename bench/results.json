@@ -1,0 +1,60 @@
+{
+  "build": {
+    "corpus_size": 50000,
+    "dimension": 1024,
+    "build_seconds": 3.25,
+    "recall_at_10_all": 0.9755,
+    "recall_at_10_selective": 0.9765,
+    "selective_fraction": 0.1,
+    "bytes_on_disk": 58718744,
+    "bytes_per_chunk": 1174.4,
+    "files": {
+      "binary.bin": 6400000,
+      "int8.bin": 51200000,
+      "ids.json": 488890,
+      "acl.npz": 621086,
+      "quant.npz": 8702,
+      "meta.json": 66
+    }
+  },
+  "query": {
+    "peak_rss_bytes": 257359872,
+    "loops": [
+      {
+        "caller": "all",
+        "permitted_fraction": 1.0,
+        "queries": 500,
+        "p50_ms": 5.445,
+        "p95_ms": 6.068,
+        "p99_ms": 6.371,
+        "mean_ms": 5.468,
+        "embed_calls_per_query": 1.0,
+        "rerank_calls_per_query": 1.0,
+        "resolver_calls_per_query": 0.0,
+        "returned_min": 10,
+        "returned_max": 10
+      },
+      {
+        "caller": "selective",
+        "permitted_fraction": 0.1,
+        "queries": 500,
+        "p50_ms": 2.439,
+        "p95_ms": 2.77,
+        "p99_ms": 3.056,
+        "mean_ms": 2.476,
+        "embed_calls_per_query": 1.0,
+        "rerank_calls_per_query": 1.0,
+        "resolver_calls_per_query": 0.0,
+        "returned_min": 10,
+        "returned_max": 10
+      }
+    ]
+  },
+  "environment": {
+    "perimeter": "0.1.0",
+    "python": "3.12.13",
+    "numpy": "2.5.2",
+    "platform": "Darwin arm64",
+    "cpu": "arm"
+  }
+}

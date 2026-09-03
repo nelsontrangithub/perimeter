@@ -12,7 +12,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from bench.recall import build_index, recall_at_k
+from bench.recall import CALLER, SELECT_CALLER, build_index, recall_at_k
 from bench.synth import synthetic_corpus, synthetic_queries
 from perimeter.index.flat import FlatIndex
 
@@ -42,7 +42,8 @@ def test_recall_at_10_meets_budget(
     mask = rng.random(CORPUS_SIZE) < permitted_fraction
     index = FlatIndex.open(tmp_path / f"idx-{permitted_fraction}", dimension=DIM)
     build_index(index, corpus, mask)
-    result = recall_at_k(index, corpus, queries, mask, k=10)
+    caller = CALLER if permitted_fraction == 1.0 else SELECT_CALLER
+    result = recall_at_k(index, corpus, queries, mask, caller=caller, k=10)
     assert result.recall >= RECALL_AT_10_FLOOR, (
         f"recall@10={result.recall:.4f} below floor {RECALL_AT_10_FLOOR} "
         f"(permitted fraction {permitted_fraction})"
